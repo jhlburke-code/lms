@@ -1,0 +1,47 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { makeBrowserClient } from '../lib/supabase';
+
+const client = makeBrowserClient(Astro);
+const { data: courses, error } = await client
+  .from('courses')
+  .select('id, slug, title, description, content_type, duration_minutes')
+  .eq('is_published', true)
+  .order('created_at', { ascending: false });
+---
+<Layout title="Course catalog">
+  <section class="container">
+    <h1>Course catalog</h1>
+    <p class="muted">Self-enroll on any course. Magic-link sign-in if you're new.</p>
+
+    {error && (
+      <div class="card" style="background: var(--red-soft); border-color: var(--red); margin: 24px 0;">
+        <strong>Couldn't load courses.</strong>
+        <p class="muted" style="margin: 8px 0 0;">{error.message}</p>
+        <p class="muted" style="margin-top: 8px; font-size: 13px;">
+          This usually means the Supabase tables aren't created yet — see <code>supabase/migrations/</code>.
+        </p>
+      </div>
+    )}
+
+    {!error && (!courses || courses.length === 0) && (
+      <div class="card" style="margin-top: 24px;">
+        <h2>No courses yet</h2>
+        <p class="muted">The operator hasn't published any courses. Check back soon.</p>
+      </div>
+    )}
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin-top: 24px;">
+      {courses?.map((c: any) => (
+        <a href={`/c/${c.slug}`} class="card" style="display: block; color: inherit;">
+          <span class={`tag tag-${c.content_type}`}>{c.content_type}</span>
+          <h2 style="margin-top: 12px;">{c.title}</h2>
+          <p class="muted">{c.description}</p>
+          {c.duration_minutes && (
+            <p class="muted" style="font-size: 13px; margin: 0;">~{c.duration_minutes} min</p>
+          )}
+        </a>
+      ))}
+    </div>
+  </section>
+</Layout>

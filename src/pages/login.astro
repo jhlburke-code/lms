@@ -1,0 +1,46 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const url = Astro.url;
+const next = url.searchParams.get('next') ?? '/me';
+const error = url.searchParams.get('error');
+const sent = url.searchParams.get('sent');
+---
+<Layout title="Sign in">
+  <section class="container" style="max-width: 480px;">
+    <a href="/" class="muted" style="font-size: 14px;">← Home</a>
+    <h1 style="margin-top: 16px;">Sign in</h1>
+    <p class="muted">Enter your work email — we'll send you a magic link.</p>
+
+    {error && (
+      <div class="card" style="background: var(--red-soft); border-color: var(--red); margin-top: 16px;">
+        {error === 'invalid' && <p>We couldn't find that link. Try requesting a fresh one below.</p>}
+        {error === 'config' && <p>Auth isn't configured yet. Operator: set Supabase env vars on the deployment.</p>}
+        {error !== 'invalid' && error !== 'config' && <p>Something went wrong ({error}). Try again.</p>}
+      </div>
+    )}
+
+    {sent && (
+      <div class="card" style="background: #E8F5E9; border-color: #1B5E20; margin-top: 16px;">
+        <strong>Check your inbox.</strong>
+        <p style="margin: 8px 0 0;">We sent a sign-in link to <strong>{sent}</strong>. It expires in 60 minutes.</p>
+      </div>
+    )}
+
+    <form method="POST" action="/api/login" class="card" style="margin-top: 24px;">
+      <label style="display: block; margin-bottom: 12px;">
+        <div style="font-weight: 600; margin-bottom: 6px;">Email</div>
+        <input
+          type="email"
+          name="email"
+          required
+          autofocus
+          style="width: 100%; padding: 12px; border: 1px solid #D0D5DD; border-radius: 6px; font-size: 15px; font-family: inherit;"
+          placeholder="you@ionos.com"
+        />
+      </label>
+      <input type="hidden" name="next" value={next} />
+      <button type="submit" class="btn btn-primary" style="width: 100%;">Send magic link</button>
+    </form>
+  </section>
+</Layout>

@@ -1,0 +1,79 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { makeBrowserClient, makeAuthenticatedClient, isAdminEmail, getCurrentUser } from '../../lib/supabase';
+
+const { slug } = Astro.params;
+if (!slug) return Astro.redirect('/catalog');
+
+const browser = makeBrowserClient(Astro);
+const { data: course } = await browser
+  .from('courses')
+  .select('id, slug, title, description, content_type, asset_url, widget_key, duration_minutes, is_published')
+  .eq('slug', slug)
+  .eq('is_published', true)
+  .maybeSingle();
+
+if (!course) {
+  return new Response('Not found', { status: 404 });
+}
+
+const user = await getCurrentUser(Astro);
+let alreadyEnrolled = false;
+if (user) {
+  const auth = makeAuthenticatedClient(Astro);
+  const { data: enr } = await auth
+    .from('enrollments')
+    .select('user_id')
+    .eq('user_id', user.id)
+    .eq('course_id', (course as any).id)
+    .maybeSingle();
+  alreadyEnrolled = !!enr;
+}
+
+const isAdmin = isAdminEmail(user?.email);
+---
+<Layout title={course.title} description={course.description}>
+  <section class="container">
+    <a href="/catalog" class="muted" style="font-size: 14px;">← Catalog</a>
+    <div style="margin-top: 16px;">
+      <span class={`tag tag-${course.content_type}`}>{course.content_type}</span>
+      <h1 style="margin-top: 12px;">{course.title}</h1>
+      <p class="muted" style="font-size: 17px;">{course.description}</p>
+
+      {course.duration_minutes && (
+        <p class="muted">~{course.duration_minutes} min</p>
+      )}
+    </div>
+
+    <div class="card" style="margin-top: 32px; max-width: 720px;">
+      {!user && (
+        <>
+          <h2>Enroll</h2>
+          <p class="muted">Sign in to enroll on this course.</p>
+          <a href={`/login?next=/c/${course.slug}`} class="btn btn-primary">Sign in to enroll</a>
+        </>
+      )}
+      {user && !alreadyEnrolled && (
+        <>
+          <h2>Enroll</h2>
+          <p class="muted">Self-enroll to start. You'll receive a confirmation email.</p>
+          <form method="POST" action="/api/enroll">
+            <input type="hidden" name="course_id" value={course.id} />
+            <input type="hidden" name="course_slug" value={course.slug} />
+            <button type="submit" class="btn btn-primary">Enroll</button>
+          </form>
+        </>
+      )}
+      {user && alreadyEnrolled && (
+        <>
+          <h2>✓ Enrolled</h2>
+          <p class="muted">You're enrolled on this course.</p>
+          <a href={`/learn/${course.slug}`} class="btn btn-primary">Open course</a>
+        </>
+      )}
+      {isAdmin && (
+        <p class="muted" style="margin-top: 16px; font-size: 13px;">Admin view</p>
+      )}
+    </div>
+  </section>
+</Layout>

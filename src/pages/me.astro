@@ -1,0 +1,47 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { makeAuthenticatedClient, getCurrentUser } from '../lib/supabase';
+
+const user = await getCurrentUser(Astro);
+if (!user) {
+  return Astro.redirect('/login?next=/me');
+}
+
+const client = makeAuthenticatedClient(Astro);
+const { data: enrollments } = await client
+  .from('enrollments')
+  .select(`
+    course_id,
+    enrolled_at,
+    status,
+    courses ( slug, title, content_type )
+  `)
+  .eq('user_id', user.id)
+  .order('enrolled_at', { ascending: false });
+---
+<Layout title="My learning">
+  <section class="container">
+    <h1>My learning</h1>
+    <p class="muted">Signed in as {user.email}</p>
+
+    {(!enrollments || enrollments.length === 0) && (
+      <div class="card" style="margin-top: 24px;">
+        <h2>You haven't enrolled in anything yet</h2>
+        <p class="muted">Browse the catalog and pick a course to get started.</p>
+        <a href="/catalog" class="btn btn-primary">Browse catalog</a>
+      </div>
+    )}
+
+    {enrollments && enrollments.length > 0 && (
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin-top: 24px;">
+        {enrollments.map((e: any) => (
+          <a href={`/learn/${e.courses.slug}`} class="card" style="display: block; color: inherit;">
+            <span class={`tag tag-${e.courses.content_type}`}>{e.courses.content_type}</span>
+            <h2 style="margin-top: 12px;">{e.courses.title}</h2>
+            <p class="muted" style="font-size: 13px;">Enrolled {new Date(e.enrolled_at).toLocaleDateString()}</p>
+          </a>
+        ))}
+      </div>
+    )}
+  </section>
+</Layout>
