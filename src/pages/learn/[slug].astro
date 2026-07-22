@@ -6,16 +6,17 @@ import { resolveCourse } from '../../lib/course-resolve';
 const { slug: hint } = Astro.params;
 if (!hint) return Astro.redirect('/catalog');
 
-const user = await getCurrentUser(Astro);
-if (!user) return Astro.redirect(`/login?next=/c/${hint}`);
-
-// Defensive UUID-alias: if hint is a UUID, redirect to canonical slug.
+// Resolve first (slug or UUID) — returns null if neither matches.
 const resolved = await resolveCourse(Astro, hint);
 if (!resolved) return new Response('Not found', { status: 404 });
 if (resolved.slug !== hint) {
   return Astro.redirect(`/learn/${resolved.slug}`, 302);
 }
 const course = resolved.course;
+const slug = resolved.slug;
+
+const user = await getCurrentUser(Astro);
+if (!user) return Astro.redirect(`/login?next=/c/${slug}`);
 
 const auth = makeAuthenticatedClient(Astro);
 const { data: enr } = await auth
